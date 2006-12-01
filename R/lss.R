@@ -32,15 +32,27 @@
 
 "lss.betag" <-function(x,y,delta,z)
 {
-	row=ncol(x)
+	if(is.vector(x))
+		row=1
+	else
+		row=ncol(x)
 	col=ncol(z)
+
 		
 	betagm<-matrix(0,ncol=col,nrow=row)
 	
 	ynew<-1000*(length(y))^2
-	dimnum<-dim(x)
-	n1<-dimnum[1]
-	n2<-dimnum[2]
+	if(is.vector(x))
+	{
+		n1<-length(x)
+		n2<- 1
+	}
+	else
+	{
+		dimnum<-dim(x)
+		n1<-dimnum[1]
+		n2<-dimnum[2]
+	}
 	
 	yy0<-rep(y,rep(n1,n1))
 	delta1<-rep(delta,rep(n1,n1))
@@ -92,15 +104,21 @@ lss<-function(formula, data, subset, trace=FALSE, mcsize=500, maxiter=10,
 	else xlevels <- NULL
 	y <- model.extract(mf, response)
 	x <- model.matrix(Terms, mf)
+	x <- as.matrix(x)
 
 	if(all(x[, 1] == 1))
 		x <- x[, -1]	
+
 		
 	if(ncol(as.matrix(y)) != 2)
 		stop("Response must be a right-censored survival object!")
 
 	nobs <- nrow(y)
-	nvar <- ncol(x)
+	if(is.vector(x))
+		nvar <- 1
+	else
+		nvar <- ncol(x)
+		
 
 	fit <- list(converged = FALSE, gehanonly=gehanonly, cov=cov, mcsize=mcsize)
 	class(fit) <- c("lss")
@@ -132,7 +150,10 @@ lss<-function(formula, data, subset, trace=FALSE, mcsize=500, maxiter=10,
 		cat("\nbetag: ", format(beta), "\n\n")
 
 	niter=0
-	xbar <- apply(x, 2, mean)
+	if(is.vector(x))
+		xbar <- mean(x)
+	else
+		xbar <- apply(x, 2, mean)
 	xm <- x - rep(xbar, rep(nobs, nvar))
 	xinv <- solve(t(xm) %*% xm)
 	xinvstar <- array(1,dim=c(nvar,nvar,mcsize))
@@ -160,9 +181,15 @@ lss<-function(formula, data, subset, trace=FALSE, mcsize=500, maxiter=10,
 
 		for(i in 1:mcsize)
 		{
-			e <- y[,1] - x %*% betastar[,i]
+			if(is.vector(x))
+				e <- y[,1] - x * betastar[,i]
+			else
+				e <- y[,1] - x %*% betastar[,i]
 			eres <- lss.eres(e, z[,i], y[,2], eps)
-			yhat <- y[,2] * y[,1] + (1 - y[,2]) * (eres + x %*% betastar[,i])
+			if(is.vector(x))
+				yhat <- y[,2] * y[,1] + (1 - y[,2]) * (eres + x * betastar[,i])
+			else
+				yhat <- y[,2] * y[,1] + (1 - y[,2]) * (eres + x %*% betastar[,i])
 			ybar <- mean(yhat)
 			betastar[,i] <- xinvstar[,,i] %*% (t(xm*z[,i]) %*% (yhat - ybar))
 		}
